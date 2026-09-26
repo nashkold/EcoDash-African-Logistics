@@ -28,6 +28,16 @@ function drawBackground() {
 
 drawBackground()
 
+let keys = {}
+
+window.addEventListener("keydown", (event)=> {
+    keys[event.key.toLocaleLowerCase] = true
+})
+
+window.addEventListener("keyup", (event)=> {
+    keys[event.key.toLocaleLowerCase] = false
+})
+
 class Vehicle {
 
     constructor(x, y) {
@@ -35,9 +45,63 @@ class Vehicle {
         this.y = y
         this.width = 60
         this.height = 30
+
+        this.vx = 0
+        this.vy = 0
+
+        //direction of the vehicle in degrees
+        this.angle = 0
+    }
+
+    update() {
+        // steering (left & right)
+        if (keys["a"] || keys["arrowleft"]) {
+            this.angle -= 0.05
+        }
+
+        if (keys["d"] || keys["arrowright"]) {
+            this.angle += 0.05
+        }
+
+        // foward and backward movement, using the vehicle's angle to determine the direction of movement
+        if (keys["w"] || keys["arrowup"]) {
+            this.vx += Math.cos(this.angle) * 0.1
+            this.vy += Math.sin(this.angle) * 0.1
+        }
+
+        if (keys["s"] || keys["arrowdown"]) {
+            this.vx -= Math.cos(this.angle) * 0.1
+            this.vy -= Math.sin(this.angle) * 0.1
+        }
+
+        // keep the vehicle inside the canvas
+        if (this.x - this.width / 2 < 0) {
+            this.x = this.width / 2
+            this.vx = 0
+        }
+ 
+        if (this.x + this.width / 2 > canvas.width) {
+            this.x = canvas.width - this.width / 2
+            this.vx = 0
+        }
+ 
+        if (this.y - this.height / 2 < 0) {
+            this.y = this.height / 2
+            this.vy = 0
+        }
+ 
+        if (this.y + this.height / 2 > canvas.height) {
+            this.y = canvas.height - this.height / 2
+            this.vy = 0
+        }
+
     }
 
     draw() {
+
+        ctx.save()
+        ctx.translate(this.x, this.y)
+        ctx.rotate(this.angle)
 
         ctx.fillStyle = "yellow"
 
@@ -100,8 +164,11 @@ function animate() {
     )
 
     drawBackground()
+    vehicle.update()
     vehicle.draw()
     drawHUD
 
     requestAnimationFrame(animate)
 }
+
+animate()
