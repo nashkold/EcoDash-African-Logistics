@@ -51,6 +51,16 @@ class Vehicle {
 
         //direction of the vehicle in degrees
         this.angle = 0
+
+        // movement tuning
+        this.acceleration = 0.15
+        this.maxSpeed = 5
+        this.friction = 0.95
+
+        //battery
+        this.battery = 100
+        this.maxBattery = 100
+        this.batteryConsumptionRate = 0.015
     }
 
     update() {
@@ -74,6 +84,23 @@ class Vehicle {
             this.vy -= Math.sin(this.angle) * 0.1
         }
 
+        // Make sure the vehicle doesn't exceed the maximum speed
+        let currentSpeed = Math.sqrt(this.vx * this.vx + this.vy * this.vy)
+
+        if (currentSpeed > this.maxSpeed) {
+            let scale = this.maxSpeed / currentSpeed
+            this.vx *= scale
+            this.vy *= scale
+        }
+
+        // Apply friction to slow down the vehicle when not accelerating
+        this.vx *= this.friction
+        this.vy *= this.friction
+
+        // Update the vehicle's position based on its velocity
+        this.x += this.vx
+        this.y += this.vy
+
         // keep the vehicle inside the canvas
         if (this.x - this.width / 2 < 0) {
             this.x = this.width / 2
@@ -95,6 +122,23 @@ class Vehicle {
             this.vy = 0
         }
 
+        // battery consumption
+        let movementSpeed = Math.sqrt(this.vx * this.vx + this.vy * this.vy)
+
+        if (movementSpeed > 0.1) {
+            this.battery -= this.batteryConsumptionRate * movementSpeed
+        }
+
+        // Ensure battery doesn't go below 0
+        if (this.battery < 0) {
+            this.battery = 0
+            this.vx = 0
+            this.vy = 0
+        }
+
+        if (this.battery > this.maxBattery) {
+            this.battery = this.maxBattery
+        }
     }
 
     draw() {
@@ -150,7 +194,7 @@ function drawHUD() {
     ctx.font = "20px Arial"
 
     ctx.fillText("Score: 0", 20, 30)
-    ctx.fillText("Battery: 100%", 20, 60)
+    ctx.fillText("Battery: " + Math.round(vehicle.battery) + "%", 20, 60)
     ctx.fillText("Distance: 0 km", 20, 90)
 }
 
