@@ -180,6 +180,15 @@ class Vehicle {
 
     ctx.restore()
     }
+
+    getBounds() {
+        return {
+            x: this.x - this.width / 2,
+            y: this.y - this.height / 2,
+            width: this.width,
+            height: this.height
+        }
+    }
 }
 
 let vehicle = new Vehicle(
@@ -188,6 +197,210 @@ let vehicle = new Vehicle(
 )
 
 vehicle.draw()
+
+class Pothole {
+    constructor(x, y, width = 45, height = 30) {
+        this.x = x
+        this.y = y
+        this.width = width
+        this.height = height
+        this.hit = false
+    }
+draw() {
+    ctx.fillStyle = "grey"
+
+    ctx.beginPath()
+    ctx.ellipse(
+        this.x,
+        this.y,
+        this.width / 2,
+        this.height / 2,
+        0,
+        0,
+        Math.PI * 2
+    )
+    ctx.fill()
+}
+
+getBounds() {
+    return {
+        x: this.x - this.width / 2,
+        y: this.y - this.height / 2,
+        width: this.width,
+        height: this.height
+    }
+}
+}
+
+class SolarMicrogridZones {
+    constructor(x, y) {
+        this.x = x
+        this.y = y
+        this.width = 75
+        this.height = 75
+    }
+
+draw() {
+    ctx.fillStyle = "#3f6f45"
+
+    ctx.fillRect(
+        this.x - this.width / 2,
+        this.y - this.height / 2,
+        this.width,
+        this.height
+    )
+
+    ctx.fillStyle = "white"
+    ctx.font = "20px Arial"
+    ctx.textAlign = "center"
+
+    ctx.fillText("Charging Station", this.x, this.y + 5)
+}
+
+getBounds() {
+    return {
+        x: this.x - this.width / 2,
+        y: this.y - this.height / 2,
+        width: this.width,
+        height: this.height
+    }
+}
+}
+
+class LoadSheddingZone {
+constructor(x, y, width = 120, height = 120) {
+    this.x = x
+    this.y = y
+    this.width = width
+    this.height = height
+    this.active = true
+
+}
+
+draw() {
+    ctx.fillStyle = this.active
+     ? "#B428284D" 
+     : "#28B45026"
+
+     ctx.fillRect(
+        this.x,
+        this.y,
+        this.width,
+        this.height
+     )
+
+        ctx.strokeStyle = this.active
+        ? "#B42828"
+        : "#28B450"
+
+        ctx.lineWidth = 2
+
+        ctx.strokeRect(
+            this.x,
+            this.y,
+            this.width,
+            this.height
+        )
+
+        ctx.fillStyle = "white"
+        ctx.font = "20px Arial"
+        ctx.textAlign = "center"
+
+        ctx.fillText(
+            this.active ? "Load Shedding Active" : "Load Shedding Inactive",
+            this.x + 6,
+            this.y + 18
+        )
+    }
+
+    getBounds() {
+        return {
+            x: this.x,
+            y: this.y,
+            width: this.width,
+            height: this.height
+        }
+    }
+}
+
+// Collision detection function, true if the two objects are colliding, false otherwise
+function checkCollision(firstObject, secondObject) {
+
+    let first = firstObject.getBounds()
+    let second = secondObject.getBounds()
+
+    return (
+    first.x < second.x + second.width &&
+           first.x + first.width > second.x &&
+           first.y < second.y + second.height &&
+           first.y + first.height > second.y
+    )
+}
+
+// positions are fractions of the canvas width and height, so they will scale with the canvas size
+let potholes = [
+    new Pothole(canvas.width * 0.35, canvas.height * 0.3),
+    new Pothole(canvas.width * 0.65, canvas.height * 0.4),
+    new Pothole(canvas.width * 0.45, canvas.height * 0.75),
+    new Pothole(canvas.width * 0.8, canvas.height * 0.6)
+]
+
+let solarMicrogridZones = [
+    new SolarMicrogridZones(canvas.width * 0.1, canvas.height * 0.15),
+    new SolarMicrogridZones(canvas.width * 0.75, canvas.height * 0.2)
+]
+
+let loadSheddingZones = [
+    new LoadSheddingZone(canvas.width * 0.05, canvas.height * 0.05),
+    new LoadSheddingZone(canvas.width * 0.75, canvas.height * 0.05)
+]
+
+//left empty so that loadshedding stays constant
+function updateLoadShedding() {
+}
+
+function handlePotholeCollisions() {
+
+    potholes.forEach((pothole) => {
+
+    if (!pothole.hit && checkCollision(vehicle, pothole)) 
+        {
+            pothole.hit = true
+
+            vehicle.battery -= 3
+
+            //if the pothole is hit, a delay is added to the vehicle's speed to simulate the effect of hitting a pothole
+            setTimeout(() => {
+                pothole.hit = true
+            }, 1000)
+        }
+    })
+}
+
+function handleSolarMicrogridZones() {
+
+    solarMicrogridZones.forEach((zone) => {
+
+        if (checkCollision(vehicle, zone)) {
+
+            let ZoneBlocked = false
+
+            loadSheddingZones.forEach((loadSheddingZone) => {
+                if (loadSheddingZone.active && checkCollision(vehicle, loadSheddingZone)) {
+                    ZoneBlocked = true
+                }
+            })
+
+            if (!ZoneBlocked) {
+                vehicle.battery += 0.25
+
+                if (vehicle.battery > vehicle.maxBattery) {
+                    vehicle.battery = vehicle.maxBattery
+                }
+            }
+        }
+    })
+}
 
 function drawHUD() {
 
@@ -210,8 +423,26 @@ function animate() {
     )
 
     drawBackground()
+
+    updateLoadShedding()
+    handlePotholeCollisions()
+    handleSolarMicrogridZones()
+
+    loadSheddingZones.forEach((zone) => {
+        zone.draw()
+    })
+
+    solarMicrogridZones.forEach((zone) => {
+        zone.draw()
+    })  
+
+    potholes.forEach((pothole) => {
+        pothole.draw()
+    })
+
     vehicle.update()
     vehicle.draw()
+
     drawHUD()
 
     requestAnimationFrame(animate)
