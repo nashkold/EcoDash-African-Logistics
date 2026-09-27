@@ -369,10 +369,9 @@ function handlePotholeCollisions() {
 
             vehicle.battery -= 3
 
-            //if the pothole is hit, a delay is added to the vehicle's speed to simulate the effect of hitting a pothole
-            setTimeout(() => {
-                pothole.hit = true
-            }, 1000)
+            // reduce the vehicle's speed when hitting a pothole
+            vehicle.vx *= 0.2
+            vehicle.vy *= 0.2
         }
     })
 }
@@ -382,22 +381,21 @@ function handleSolarMicrogridZones() {
     solarMicrogridZones.forEach((zone) => {
 
         if (checkCollision(vehicle, zone)) {
+            vehicle.battery += 0.25
 
-            let ZoneBlocked = false
-
-            loadSheddingZones.forEach((loadSheddingZone) => {
-                if (loadSheddingZone.active && checkCollision(vehicle, loadSheddingZone)) {
-                    ZoneBlocked = true
-                }
-            })
-
-            if (!ZoneBlocked) {
-                vehicle.battery += 0.25
-
-                if (vehicle.battery > vehicle.maxBattery) {
-                    vehicle.battery = vehicle.maxBattery
-                }
+            if (vehicle.battery > vehicle.maxBattery) {
+                vehicle.battery = vehicle.maxBattery
             }
+
+}
+    })
+}
+function handleLoadSheddingZonesCollisions() {
+    loadSheddingZones.forEach((zone) => {
+
+        if (zone.active && checkCollision(vehicle, zone)) {
+            // drain the battery slightly faster when in a load shedding zone
+            vehicle.battery -= 0.5
         }
     })
 }
@@ -425,8 +423,11 @@ function animate() {
     drawBackground()
 
     updateLoadShedding()
+
+    // Event handling
     handlePotholeCollisions()
     handleSolarMicrogridZones()
+    handleLoadSheddingZonesCollisions()
 
     loadSheddingZones.forEach((zone) => {
         zone.draw()
