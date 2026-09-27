@@ -323,6 +323,42 @@ draw() {
     }
 }
 
+class DeliveryTarget {
+    constructor(x, y,) {
+        this.x = x
+        this.y = y
+        this.width = 35
+        this.height = 35
+        this.collected = false
+    }
+
+    draw() {
+        if (this.collected) return
+
+        ctx.fillStyle = "orange"
+        ctx.fillRect(
+            this.x - this.width / 2,
+            this.y - this.height / 2,
+            this.width,
+            this.height
+        )
+
+        ctx.fillStyle = "white"
+        ctx.font = "20px Arial"
+        ctx.textAlign = "center"
+        ctx.fillText("Delivery", this.x, this.y + 5)
+    }
+
+    getBounds() {
+        return {
+            x: this.x - this.width / 2,
+            y: this.y - this.height / 2,
+            width: this.width,
+            height: this.height
+        }
+    }
+}
+
 // Collision detection function, true if the two objects are colliding, false otherwise
 function checkCollision(firstObject, secondObject) {
 
@@ -354,6 +390,18 @@ let loadSheddingZones = [
     new LoadSheddingZone(canvas.width * 0.05, canvas.height * 0.05),
     new LoadSheddingZone(canvas.width * 0.75, canvas.height * 0.05)
 ]
+ 
+// let the number of delivery be randomly generated between 3 and 7
+let score = 0
+let deliveryTargets = []
+let numberOfDeliveryTargets = Math.floor(Math.random() * 5) + 3
+
+for (let i = 0; i < numberOfDeliveryTargets; i++) {
+    //emsure the targets are not too close to the edges of the canvas
+    let randX = Math.random() * (canvas.width - 100) + 50
+    let randY = Math.random() * (canvas.height -100) + 50
+    deliveryTargets.push(new DeliveryTarget(randX, randY))
+}
 
 //left empty so that loadshedding stays constant
 function updateLoadShedding() {
@@ -400,13 +448,22 @@ function handleLoadSheddingZonesCollisions() {
     })
 }
 
+function handleDeliveryTargets() {
+    deliveryTargets.forEach((target) => { 
+        if (!target.collected && checkCollision(vehicle, target)) {
+            target.collected = true
+            score += 1
+        }
+    })
+}
+
 function drawHUD() {
 
     ctx.fillStyle = "black"
 
     ctx.font = "20px Arial"
 
-    ctx.fillText("Score: 0", 20, 30)
+    ctx.fillText("Score: " + score, 20, 30)
     ctx.fillText("Battery: " + Math.round(vehicle.battery) + "%", 20, 60)
     ctx.fillText("Distance: 0 km", 20, 90)
 }
@@ -428,7 +485,9 @@ function animate() {
     handlePotholeCollisions()
     handleSolarMicrogridZones()
     handleLoadSheddingZonesCollisions()
+    handleDeliveryTargets()
 
+    // draw objects
     loadSheddingZones.forEach((zone) => {
         zone.draw()
     })
@@ -439,6 +498,10 @@ function animate() {
 
     potholes.forEach((pothole) => {
         pothole.draw()
+    })
+
+    deliveryTargets.forEach((target) => {
+        target.draw()
     })
 
     vehicle.update()
