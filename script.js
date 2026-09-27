@@ -31,11 +31,11 @@ drawBackground()
 let keys = {}
 
 window.addEventListener("keydown", (event)=> {
-    keys[event.key.toLocaleLowerCase] = true
+    keys[event.key.toLocaleLowerCase()] = true
 })
 
 window.addEventListener("keyup", (event)=> {
-    keys[event.key.toLocaleLowerCase] = false
+    keys[event.key.toLocaleLowerCase()] = false
 })
 
 class Vehicle {
@@ -150,8 +150,8 @@ class Vehicle {
         ctx.fillStyle = "yellow"
 
     ctx.fillRect(
-        this.x,
-        this.y,
+        -this.width / 2,
+        -this.height / 2,
         this.width,
         this.height
     )
@@ -160,8 +160,8 @@ class Vehicle {
 
     ctx.beginPath()
     ctx.arc(
-        this.x + 15,
-        this.y + this.height,
+        -this.width / 2 + 15,
+        this.height / 2,
         7,
         0,
         Math.PI * 2
@@ -170,13 +170,15 @@ class Vehicle {
 
     ctx.beginPath()
     ctx.arc(
-        this.x + this.width - 15,
-        this.y + this.height,
+        this.width / 2 - 15,
+        this.height / 2,
         7,
         0,
         Math.PI * 2
     )
     ctx.fill()
+
+    ctx.restore()
     }
 }
 
@@ -210,7 +212,7 @@ function animate() {
     drawBackground()
     vehicle.update()
     vehicle.draw()
-    drawHUD
+    drawHUD()
 
     requestAnimationFrame(animate)
 }
