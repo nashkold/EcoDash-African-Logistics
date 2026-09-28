@@ -1,3 +1,11 @@
+:root {
+    --frame-green: #84bd82;
+    --hud-brown: #75443f;
+    --dark-brown: #3b2a20;
+    --savanna-orange: #e08a1e;
+    --cream: #f6e7c8;
+}
+
 * {
     box-sizing: border-box;
     margin: 0;
@@ -7,9 +15,172 @@
 html, body {
     overflow: hidden;
     height: 100%;
+    font-family: Arial, sans-serif;
+    background-color: var(--dark-brown);
+    color: var(--cream);
+}
+
+#gameWrapper {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
 }
 
 canvas {
     display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 1;
 }
-    
+
+/* ---------- HUD Header ---------- */
+#hud {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 24px;
+    background: rgba(117, 68, 63, 0.92); /* var(--hud-brown) with opacity */
+    border-bottom: 4px solid var(--savanna-orange);
+    z-index: 10;
+}
+
+#hudBrand {
+    font-size: 24px;
+    font-weight: bold;
+    color: white;
+}
+
+#hudBrand small {
+    display: block;
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--savanna-orange);
+}
+
+#hudStats {
+    display: flex;
+    gap: 22px;
+    text-align: center;
+}
+
+.label {
+    display: block;
+    font-size: 11px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--cream);
+    opacity: 0.85;
+}
+
+.stat span:not(.label) {
+    font-size: 18px;
+    font-weight: bold;
+    color: #ffe14d;
+}
+
+#weather.rain {
+    color: #7fc8ff;
+}
+
+#battery {
+    min-width: 150px;
+    text-align: center;
+}
+
+#batteryBar {
+    height: 14px;
+    margin: 4px 0;
+    background: #2a1a17;
+    border: 2px solid var(--cream);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+#batteryFill {
+    height: 100%;
+    width: 100%;
+    background: #4cd137;
+    transition: width 0.15s ease, background-color 0.3s ease;
+}
+
+#batteryText {
+    font-size: 16px;
+    font-weight: bold;
+}
+
+/* ---------- Bottom Bar ---------- */
+#bottomBar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 14px;
+    padding: 10px 24px;
+    background: rgba(117, 68, 63, 0.92);
+    border-top: 2px solid rgba(255, 255, 255, 0.1);
+    z-index: 10;
+}
+
+#objective {
+    padding: 8px 16px;
+    font-size: 16px;
+    font-weight: bold;
+    color: white;
+    background: #2f8f3a;
+    border-radius: 8px;
+}
+
+#deliveryCount {
+    color: #ffe14d;
+}
+
+#controls {
+    padding: 8px 14px;
+    color: var(--dark-brown);
+    background: var(--cream);
+    border-radius: 8px;
+}
+
+#controls h2 {
+    margin-bottom: 4px;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+#controls ul {
+    display: flex;
+    gap: 16px;
+    list-style: none;
+    font-size: 13px;
+}
+
+#controls li {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+kbd {
+    display: inline-block;
+    min-width: 22px;
+    padding: 1px 5px;
+    text-align: center;
+    font-weight: bold;
+    color: white;
+    background: var(--dark-brown);
+    border-radius: 4px;
+}

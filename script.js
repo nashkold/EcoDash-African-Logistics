@@ -3,8 +3,14 @@ let canvas = document.querySelector("canvas")
 canvas.width = innerWidth
 canvas.height =innerHeight
 
-let weatherElement = document.querySelector("#weather")
-let clockElement = document.querySelector("#clock")
+// HTML HUD
+const scoreElement = document.querySelector("#score")
+const distanceElement = document.querySelector("#distance")
+const weatherElement = document.querySelector("#weather")
+const clockElement = document.querySelector("#clock")
+const batteryFillElement = document.querySelector("#batteryFill")
+const batteryTextElement = document.querySelector("#batteryText")
+const deliveryCountElement = document.querySelector("#deliveryCount")
 
 // Day / night cycle settings (24 hours over ~4 mins starting at 06:00)
 let gameHour = 6
@@ -330,162 +336,145 @@ function drawBackground() {
 //}
 //drawBackground()
 
-let keys = {}
+//old keyboard controls
+// let keys = {}
 
-window.addEventListener("keydown", (event)=> {
-    keys[event.key.toLocaleLowerCase()] = true
+// window.addEventListener("keydown", (event)=> {
+//     keys[event.key.toLocaleLowerCase()] = true
+// })
+
+// window.addEventListener("keyup", (event)=> {
+//     keys[event.key.toLocaleLowerCase()] = false
+// })
+
+//new keyboard controls
+const keys = {
+    up: false,
+    down: false,
+    left: false,
+    right: false
+}
+
+window.addEventListener("keydown", (e) => {
+    // prevents scrolling when using the arrow keys or spacebar
+    if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " "].includes(e.key)) {
+        e.preventDefault()
+    }
+
+    const key = e.key.toLowerCase()
+
+    if (key === "w" || e.key === "ArrowUp") keys.up = true
+    if (key === "s" || e.key === "ArrowDown") keys.down = true
+    if (key === "a" || e.key === "ArrowLeft") keys.left = true
+    if (key === "d" || e.key === "ArrowRight") keys.right = true
+
+    // main game control buttons
+    if (key === "h") playHorn()
+    if (key === "p") togglePause()
+    if (key === "r") restartGame()
 })
 
-window.addEventListener("keyup", (event)=> {
-    keys[event.key.toLocaleLowerCase()] = false
+window.addEventListener("keyup", (e) => {
+    const key = e.key.toLowerCase()
+
+    if (key === "w" || e.key === "ArrowUp") keys.up = false
+    if (key === "s" || e.key === "ArrowDown") keys.down = false
+    if (key === "a" || e.key === "ArrowLeft") keys.left = false
+    if (key === "d" || e.key === "ArrowRight") keys.right = false
 })
 
 class Vehicle {
-
     constructor(x, y) {
         this.x = x
         this.y = y
         this.width = 60
         this.height = 30
 
-        this.vx = 0
-        this.vy = 0
-
-        //direction of the vehicle in degrees
+        this.speed = 0
         this.angle = 0
 
-        // movement tuning
+        // Tuning Parameters
         this.acceleration = 0.15
+        this.reverseAcceleration = 0.08
         this.maxSpeed = 5
+        this.maxReverseSpeed = 2
+        this.turnSpeed = 0.04
         this.friction = 0.95
 
-        //battery
+        // Battery System
         this.battery = 100
         this.maxBattery = 100
         this.batteryConsumptionRate = 0.015
     }
 
     update() {
-        // steering (left & right)
-        if (keys["a"] || keys["arrowleft"]) {
-            this.angle -= 0.05
+        // Thrust & Deceleration
+        if (keys.up && this.battery > 0) {
+            this.speed += this.acceleration
+        } else if (keys.down) {
+            this.speed -= this.reverseAcceleration
+        } else {
+            this.speed *= this.friction
         }
 
-        if (keys["d"] || keys["arrowright"]) {
-            this.angle += 0.05
+        // Speed Clamping
+        this.speed = Math.max(-this.maxReverseSpeed, Math.min(this.maxSpeed, this.speed))
+
+        // Turning Logic
+        if (Math.abs(this.speed) > 0.05) {
+            let turnDirection = this.speed > 0 ? 1 : -1
+            if (keys.left) this.angle -= this.turnSpeed * turnDirection
+            if (keys.right) this.angle += this.turnSpeed * turnDirection
         }
 
-        // foward and backward movement, using the vehicle's angle to determine the direction of movement
-        if (keys["w"] || keys["arrowup"]) {
-            this.vx += Math.cos(this.angle) * 0.1
-            this.vy += Math.sin(this.angle) * 0.1
+        // Velocity & Distance Calculation
+        let dx = Math.cos(this.angle) * this.speed
+        let dy = Math.sin(this.angle) * this.speed
+
+        this.x += dx
+        this.y += dy
+
+        distanceTraveled += Math.abs(this.speed)
+
+        // Canvas Boundary Collisions
+        if (this.x - this.width / 2 < 0) this.x = this.width / 2
+        if (this.x + this.width / 2 > canvas.width) this.x = canvas.width - this.width / 2
+        if (this.y - this.height / 2 < 0) this.y = this.height / 2
+        if (this.y + this.height / 2 > canvas.height) this.y = canvas.height - this.height / 2
+
+        // Battery Depletion
+        if (Math.abs(this.speed) > 0.1) {
+            this.battery -= this.batteryConsumptionRate * Math.abs(this.speed) * (1 + 0.3 * rainAmount)
         }
 
-        if (keys["s"] || keys["arrowdown"]) {
-            this.vx -= Math.cos(this.angle) * 0.1
-            this.vy -= Math.sin(this.angle) * 0.1
-        }
-
-        // Make sure the vehicle doesn't exceed the maximum speed
-        let currentSpeed = Math.sqrt(this.vx * this.vx + this.vy * this.vy)
-
-        if (currentSpeed > this.maxSpeed) {
-            let scale = this.maxSpeed / currentSpeed
-            this.vx *= scale
-            this.vy *= scale
-        }
-
-        // Apply friction to slow down the vehicle when not accelerating
-        this.vx *= this.friction
-        this.vy *= this.friction
-
-        // Update the vehicle's position based on its velocity
-        this.x += this.vx
-        this.y += this.vy
-
-        // keep the vehicle inside the canvas
-        if (this.x - this.width / 2 < 0) {
-            this.x = this.width / 2
-            this.vx = 0
-        }
- 
-        if (this.x + this.width / 2 > canvas.width) {
-            this.x = canvas.width - this.width / 2
-            this.vx = 0
-        }
- 
-        if (this.y - this.height / 2 < 0) {
-            this.y = this.height / 2
-            this.vy = 0
-        }
- 
-        if (this.y + this.height / 2 > canvas.height) {
-            this.y = canvas.height - this.height / 2
-            this.vy = 0
-        }
-
-        // battery consumption
-        let movementSpeed = Math.sqrt(this.vx * this.vx + this.vy * this.vy)
-
-        if (movementSpeed > 0.1) {
-            this.battery -= this.batteryConsumptionRate * movementSpeed
-
-        // Rain increases vehicle friction and battery usage
-if (movementSpeed > 0.1) {
-            this.battery -= this.batteryConsumptionRate * movementSpeed * (1 + 0.3 * rainAmount)
-}
-        }
-
-        // Ensure battery doesn't go below 0
+        // Battery Bounds
         if (this.battery < 0) {
             this.battery = 0
-            this.vx = 0
-            this.vy = 0
+            this.speed = 0
         }
-
         if (this.battery > this.maxBattery) {
             this.battery = this.maxBattery
         }
     }
 
     draw() {
-
         ctx.save()
         ctx.translate(this.x, this.y)
         ctx.rotate(this.angle)
 
         ctx.fillStyle = "yellow"
+        ctx.fillRect(-this.width / 2, -this.height / 2, this.width, this.height)
 
-    ctx.fillRect(
-        -this.width / 2,
-        -this.height / 2,
-        this.width,
-        this.height
-    )
+        ctx.fillStyle = "black"
+        ctx.beginPath()
+        ctx.arc(-this.width / 2 + 15, this.height / 2, 7, 0, Math.PI * 2)
+        ctx.fill()
 
-    ctx.fillStyle = "black"
+        ctx.beginPath()
+        ctx.arc(this.width / 2 - 15, this.height / 2, 7, 0, Math.PI * 2)
+        ctx.fill()
 
-    ctx.beginPath()
-    ctx.arc(
-        -this.width / 2 + 15,
-        this.height / 2,
-        7,
-        0,
-        Math.PI * 2
-    )
-    ctx.fill()
-
-    ctx.beginPath()
-    ctx.arc(
-        this.width / 2 - 15,
-        this.height / 2,
-        7,
-        0,
-        Math.PI * 2
-    )
-    ctx.fill()
-
-    ctx.restore()
+        ctx.restore()
     }
 
     getBounds() {
@@ -750,7 +739,12 @@ let loadSheddingZones = []
 let solarMicrogridZones = []
 let potholes = []
 let deliveryTargets = []
+
+// HUD Stat Tracking
 let score = 0
+let distanceTraveled = 0
+let deliveriesCompleted = 0
+let totalDeliveries = 0
 
 // initialize world elements according to these logic rules
 function initWorld() {
@@ -787,6 +781,10 @@ function initWorld() {
     for (let i = 0; i < 4; i++) {
         potholes.push(findFreeSpot("pothole"))
     }
+
+    // set HUD target counts
+    totalDeliveries = deliveryTargets.length
+    deliveriesCompleted = 0
 }
 
 initWorld()
@@ -877,6 +875,7 @@ function handleDeliveryTargets() {
         if (!target.collected && checkCollision(vehicle, target)) {
             target.collected = true
             score += 150
+            deliveriesCompleted++
         }
     })
 }
@@ -887,9 +886,37 @@ function drawHUD() {
     ctx.font = "20px Arial"
     ctx.textAlign = "left"
 
-    ctx.fillText("Score: " + score, 20, 30)
-    ctx.fillText("Battery: " + Math.round(vehicle.battery) + "%", 20, 60)
-    ctx.fillText("Distance: 0 km", 20, 90)
+    // ctx.fillText("Score: " + score, 20, 30)
+    // ctx.fillText("Battery: " + Math.round(vehicle.battery) + "%", 20, 60)
+    // ctx.fillText("Distance: 0 km", 20, 90)
+}
+
+function updateHUD() {
+    // Stat Counters
+    scoreElement.textContent = Math.floor(score)
+    distanceElement.textContent = (distanceTraveled / 1000).toFixed(1) + " km"
+    
+    // Time & Weather
+    weatherElement.textContent = currentWeather
+    weatherElement.classList.toggle("rain", currentWeather === "RAIN")
+    clockElement.textContent = getTimeLabel()
+
+    // Objective Counter
+    deliveryCountElement.textContent = `(${deliveriesCompleted} / ${totalDeliveries})`
+
+    // Dynamic Battery Bar
+    let batteryPct = Math.max(0, Math.min(100, vehicle.battery))
+    batteryFillElement.style.width = batteryPct + "%"
+    batteryTextElement.textContent = Math.round(batteryPct) + "%"
+
+    // Battery Colors
+    if (batteryPct > 50) {
+        batteryFillElement.style.background = "#4cd137" // Green
+    } else if (batteryPct > 20) {
+        batteryFillElement.style.background = "#e08a1e" // Orange
+    } else {
+        batteryFillElement.style.background = "#e74c3c" // Red
+    }
 }
 
 function animate() {
@@ -901,15 +928,20 @@ function animate() {
         canvas.height
     )
 
-    drawBackground()
-
+    //update logic and parameters
+    vehicle.update()
+    updateTime()
+    updateWeather()
     updateLoadShedding()
 
-    // Event handling
+    //collision event handling
     handlePotholeCollisions()
     handleSolarMicrogridZones()
     handleLoadSheddingZonesCollisions()
     handleDeliveryTargets()
+
+    //draw environment & objects
+    drawBackground()
 
     // draw objects
     loadSheddingZones.forEach((zone) => {
@@ -928,13 +960,13 @@ function animate() {
         target.draw()
     })
 
-    vehicle.update()
+    //draw vehicle 
     vehicle.draw()
-
     drawWeather()
     drawDayNight()
 
-    drawHUD()
+    // Refresh the HUD
+    updateHUD()
 
     requestAnimationFrame(animate)
 }
