@@ -184,3 +184,114 @@ kbd {
     background: var(--dark-brown);
     border-radius: 4px;
 }
+
+/* ---------- Game state screens (start / paused / game over) ---------- */
+.screen {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: rgba(59, 42, 32, 0.85);
+    z-index: 20;
+}
+
+.hidden {
+    display: none !important;
+}
+
+.screenBox {
+    width: 90%;
+    max-width: 460px;
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 24px 28px;
+    text-align: center;
+    background: var(--hud-brown);
+    border: 4px solid var(--savanna-orange);
+    border-radius: 12px;
+}
+
+.screenBox h1 {
+    margin-bottom: 10px;
+    color: white;
+}
+
+.screenBox h1 small {
+    display: block;
+    font-size: 12px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--savanna-orange);
+}
+
+.screenBox h2 {
+    margin: 14px 0 6px;
+    font-size: 14px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--savanna-orange);
+}
+
+.screenBox p {
+    margin-bottom: 8px;
+    line-height: 1.4;
+}
+
+#newHighScore {
+    font-size: 20px;
+    font-weight: bold;
+    color: #ffe14d;
+}
+
+#results {
+    margin: 10px 0;
+    list-style: none;
+    text-align: left;
+}
+
+#results li {
+    padding: 4px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+#results span {
+    float: right;
+    font-weight: bold;
+    color: #ffe14d;
+}
+
+.scoreList {
+    margin: 0 0 14px 24px;
+    text-align: left;
+    font-size: 14px;
+}
+
+.scoreList li {
+    padding: 2px 0;
+}
+
+/* ---------- Buttons ---------- */
+button {
+    margin: 4px;
+    padding: 10px 20px;
+    font-size: 15px;
+    font-weight: bold;
+    color: white;
+    background: #2f8f3a;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+button:hover {
+    background: var(--savanna-orange);
+}
+
+#gameButtons button {
+    padding: 6px 14px;
+    font-size: 13px;
+}

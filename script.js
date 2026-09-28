@@ -11,6 +11,8 @@ const clockElement = document.querySelector("#clock")
 const batteryFillElement = document.querySelector("#batteryFill")
 const batteryTextElement = document.querySelector("#batteryText")
 const deliveryCountElement = document.querySelector("#deliveryCount")
+const efficiencyElement = document.querySelector("#efficiency")
+const bestScoreElement = document.querySelector("#bestScore")
 
 // Day / night cycle settings (24 hours over ~4 mins starting at 06:00)
 let gameHour = 6
@@ -838,8 +840,7 @@ function handlePotholeCollisions() {
             vehicle.battery -= 3
 
             // reduce the vehicle's speed when hitting a pothole
-            vehicle.vx *= 0.2
-            vehicle.vy *= 0.2
+            vehicle.speed *= 0.2
 
             score -= 25
         }
@@ -922,38 +923,222 @@ function updateHUD() {
     }
 }
 
+// Game management
+
+// Game state screens and buttons
+const startScreen = document.querySelector("#startScreen")
+const pauseScreen = document.querySelector("#pauseScreen")
+const gameOverScreen = document.querySelector("#gameOverScreen")
+const startButton = document.querySelector("#startButton")
+const pauseButton = document.querySelector("#pauseButton")
+const resumeButton = document.querySelector("#resumeButton")
+const restartButtons = document.querySelectorAll(".restartButton")
+
+// Game over screen elements
+const gameOverTitleElement = document.querySelector("#gameOverTitle")
+const gameOverMessageElement = document.querySelector("#gameOverMessage")
+const newHighScoreElement = document.querySelector("#newHighScore")
+const finalScoreElement = document.querySelector("#finalScore")
+const finalDeliveriesElement = document.querySelector("#finalDeliveries")
+const finalDistanceElement = document.querySelector("#finalDistance")
+const finalEfficiencyElement = document.querySelector("#finalEfficiency")
+const startScoreList = document.querySelector("#startScoreList")
+const gameOverScoreList = document.querySelector("#gameOverScoreList")
+
+const HIGH_SCORE_KEY = "ecoDashHighScores"
+const MAX_HIGH_SCORES = 5
+
+// Shows only the screen that matches the current game state
+function setGameState(newState) {
+    gameState = newState
+
+    startScreen.classList.toggle("hidden", gameState !== "start")
+    pauseScreen.classList.toggle("hidden", gameState !== "paused")
+    gameOverScreen.classList.toggle("hidden", gameState !== "gameOver")
+
+    // stops a clicked button keeping focus
+    document.activeElement.blur()
+}
+
+// Energy efficiency score = distance travelled for the battery used
+// Potholes, rain and load shedding waste battery
+function getEnergyEfficiency() {
+    if (energyUsed <= 0) return 100
+
+    let perfectDistancePerBattery = 1 / vehicle.batteryConsumptionRate
+    let actualDistancePerBattery = distanceTraveled / energyUsed
+    let efficiency = (actualDistancePerBattery / perfectDistancePerBattery) * 100
+
+    return Math.min(100, Math.round(efficiency))
+}
+
+// Reads the saved high scores from local storage and sorts them by the highest score
+function loadHighScores() {
+    let savedText = localStorage.getItem(HIGH_SCORE_KEY)
+
+    if (savedText === null) return []
+
+    try {
+        return JSON.parse(savedText)
+    } catch (error) {
+        // saved data was damaged, start again with an empty list
+        return []
+    }
+}
+
+// Adds a new score, keeps the top 5 and saves them to local storage
+function saveHighScore(newEntry) {
+    let highScores = loadHighScores()
+
+    highScores.push(newEntry)
+    highScores.sort((a, b) => b.score - a.score)
+    highScores = highScores.slice(0, MAX_HIGH_SCORES)
+
+    localStorage.setItem(HIGH_SCORE_KEY, JSON.stringify(highScores))
+}
+
+// Fills an <ol> list with the saved high scores
+function showHighScores(listElement) {
+    let highScores = loadHighScores()
+    listElement.innerHTML = ""
+
+    if (highScores.length === 0) {
+        listElement.innerHTML = "<li>No scores yet - be the first!</li>"
+        return
+    }
+
+    highScores.forEach((entry) => {
+        let item = document.createElement("li")
+        item.textContent = entry.score + " pts | " + entry.distance + " km | " + entry.efficiency + "% efficiency | " + entry.date
+        listElement.appendChild(item)
+    })
+}
+
+function updateBestScore() {
+    let highScores = loadHighScores()
+    bestScoreElement.textContent = highScores.length > 0 ? highScores[0].score : 0
+}
+
+// Starts a new game without refreshing the page
+function restartGame() {
+    vehicle = new Vehicle(canvas.width / 2, canvas.height - 100)
+
+    score = 0
+    distanceTraveled = 0
+    energyUsed = 0
+
+    // reset the time of day and weather
+    gameHour = 6
+    weatherIndex = 0
+    weatherTimer = 0
+    currentWeather = "Clear"
+    rainAmount = 0
+    cloudAmount = 0.5
+
+    // stop keys that were held down from carrying over
+    keys.up = false
+    keys.down = false
+    keys.left = false
+    keys.right = false
+
+    // new random positions for the zones, deliveries and potholes
+    initWorld()
+
+    setGameState("playing")
+}
+
+function startGame() {
+    restartGame()
+}
+
+function togglePause() {
+    if (gameState === "playing") {
+        setGameState("paused")
+    } else if (gameState === "paused") {
+        setGameState("playing")
+    }
+}
+
+// Ends the game,calculates and saves the final score
+function endGame(missionComplete) {
+    let efficiency = getEnergyEfficiency()
+    let efficiencyBonus = efficiency * 3
+    score = Math.max(0, score + efficiencyBonus)
+
+    let savedScores = loadHighScores()
+    let previousBest = savedScores.length > 0 ? savedScores[0].score : 0
+    let isNewHighScore = score > previousBest
+
+    if (score > 0) {
+        saveHighScore({
+            score: score,
+            distance: Number((distanceTraveled / 1000).toFixed(2)),
+            efficiency: efficiency,
+            deliveries: deliveriesCompleted,
+            date: new Date().toLocaleDateString()
+        })
+    }
+
+    gameOverTitleElement.textContent = missionComplete ? "Mission Complete!" : "Battery Depleted"
+    gameOverMessageElement.textContent = missionComplete
+        ? "All supplies have been delivered."
+        : "The vehicle's battery ran out before deliveries were completed."
+    finalScoreElement.textContent = score
+    finalDeliveriesElement.textContent = deliveriesCompleted + " / " + totalDeliveries
+    finalDistanceElement.textContent = (distanceTraveled / 1000).toFixed(2) + " km"
+    finalEfficiencyElement.textContent = efficiency + "% (+" + efficiencyBonus + " pts)"
+    newHighScoreElement.classList.toggle("hidden", !isNewHighScore)
+
+    showHighScores(gameOverScoreList)
+    updateBestScore()
+    setGameState("gameOver")
+}
+
+function checkGameOver() {
+    if (totalDeliveries > 0 && deliveriesCompleted === totalDeliveries) {
+        endGame(true)
+    } else if (vehicle.battery <= 0) {
+        endGame(false)
+    }
+}
+
+startButton.addEventListener("click", startGame)
+pauseButton.addEventListener("click", togglePause)
+resumeButton.addEventListener("click", togglePause)
+restartButtons.forEach((button) => {
+    button.addEventListener("click", restartGame)
+})
+
+
 function animate() {
 
-    ctx.clearRect(
-        0,
-        0,
-        canvas.width,
-        canvas.height
-    )
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
 
-    //update logic and parameters
-    vehicle.update()
-    updateTime()
-    updateWeather()
-    updateLoadShedding()
+    // game logic only runs while the game is being played
+    if (gameState === "playing") {
+        vehicle.update()
+        updateTime()
+        updateWeather()
+        updateLoadShedding()
 
-    //collision event handling
-    handlePotholeCollisions()
-    handleSolarMicrogridZones()
-    handleLoadSheddingZonesCollisions()
-    handleDeliveryTargets()
+        handlePotholeCollisions()
+        handleSolarMicrogridZones()
+        handleLoadSheddingZonesCollisions()
+        handleDeliveryTargets()
 
-    //draw environment & objects
+        checkGameOver()
+    }
+
+    //runs so the frozen scene stays visible evn if the game is paused
     drawBackground()
 
-    // draw objects
     loadSheddingZones.forEach((zone) => {
         zone.draw()
     })
 
     solarMicrogridZones.forEach((zone) => {
         zone.draw()
-    })  
+    })
 
     potholes.forEach((pothole) => {
         pothole.draw()
@@ -963,15 +1148,17 @@ function animate() {
         target.draw()
     })
 
-    //draw vehicle 
     vehicle.draw()
     drawWeather()
     drawDayNight()
 
-    // Refresh the HUD
     updateHUD()
 
     requestAnimationFrame(animate)
 }
 
+// Show the start screen first
+setGameState("start")
+showHighScores(startScoreList)
+updateBestScore()
 animate()

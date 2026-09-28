@@ -11,14 +11,15 @@
 
     <div id="gameWrapper">
  
-        <!-- HUD: sits above the canvas, separate from the game area -->
+        <!-- Heads Up Display (HUD): sits above the canvas and separate from the game area -->
         <header id="hud">
             <div id="hudBrand">EcoDash <small>African Logistics</small></div>
  
             <div id="hudStats">
                 <div class="stat"><span class="label">Score</span><span id="score">0</span></div>
+                 <div class="stat"><span class="label">Best</span><span id="bestScore">0</span></div>
                 <div class="stat"><span class="label">Distance</span><span id="distance">0.0 km</span></div>
-                <div class="stat"><span class="label">Weather</span><span id="weather">CLEAR</span></div>
+                <div class="stat"><span class="label">Weather</span><span id="weather">Clear</span></div>
                 <div class="stat"><span class="label">Time</span><span id="clock">06:00 Morning</span></div>
             </div>
  
@@ -30,6 +31,42 @@
         </header>
 
     <canvas></canvas>
+
+<!-- Game state screens -->
+    <div id="startScreen" class="screen">
+        <div class="screenBox">
+            <h1>EcoDash <small>African Logistics</small></h1>
+            <p>Deliver supplies across the rural areas throughout South Africa. Watch your battery, recharge at solar microgrid stations, avoid potholes and load shedding zones.</p>
+            <h2>High Scores</h2>
+            <ol id="startScoreList" class="scoreList"></ol>
+            <button id="startButton">Start Mission</button>
+        </div>
+    </div>
+
+    <div id="pauseScreen" class="screen hidden">
+        <div class="screenBox">
+            <h1>Paused</h1>
+            <button id="resumeButton">Resume</button>
+            <button class="restartButton">Restart</button>
+        </div>
+    </div>
+
+    <div id="gameOverScreen" class="screen hidden">
+        <div class="screenBox">
+            <h1 id="gameOverTitle">Game Over</h1>
+            <p id="gameOverMessage"></p>
+            <p id="newHighScore" class="hidden">New High Score!</p>
+            <ul id="results">
+                <li>Final score <span id="finalScore">0</span></li>
+                <li>Deliveries <span id="finalDeliveries">0 / 0</span></li>
+                <li>Distance travelled <span id="finalDistance">0 km</span></li>
+                <li>Energy efficiency <span id="finalEfficiency">100%</span></li>
+            </ul>
+            <h2>High Scores</h2>
+            <ol id="gameOverScoreList" class="scoreList"></ol>
+            <button class="restartButton">Play Again</button>
+        </div>
+    </div>
 
     <!-- Objective and keyboard controls underneath the game area -->
         <footer id="bottomBar">
@@ -46,6 +83,11 @@
                     <li><kbd>P</kbd> Pause</li>
                     <li><kbd>R</kbd> Restart</li>
                 </ul>
+            </div>
+
+        <div id="gameButtons">
+                <button id="pauseButton">Pause</button>
+                <button class="restartButton">Restart</button>
             </div>
         </footer>
     </div>
