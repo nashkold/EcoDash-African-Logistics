@@ -3,6 +3,43 @@ let canvas = document.querySelector("canvas")
 canvas.width = innerWidth
 canvas.height =innerHeight
 
+let weatherElement = document.querySelector("#weather")
+let clockElement = document.querySelector("#clock")
+
+// Day / night cycle settings (24 hours over ~4 mins starting at 06:00)
+let gameHour = 6
+let hoursPerFrame = 24 / 7200
+let sunHeight = 0
+let nightOpacity = 0
+
+// Weather cycle settings 
+let weatherStates = ["Clear", "Cloudy", "Rain", "Clear"]
+let weatherIndex = 0
+let weatherTimer = 0
+// frames per weather state
+let weatherDuration = 600
+let currentWeather = "Clear"
+// 0 to 1 smooth fade
+let rainAmount = 0
+let AmountOfclouds = 0
+
+let numberOfclouds = [
+    { x: 100, y: 40, size: 1 },
+    { x: 400, y: 75, size: 0.8 },
+    { x: 700, y: 35, size: 1.2 },
+    { x: 900, y: 80, size: 0.7 }
+]
+
+let raindrops = []
+for (let i = 0; i < 150; i++) {
+    raindrops.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        length: 8 + Math.random() * 8,
+        speed: 8 + Math.random() * 6
+    })
+}
+
 let ctx = canvas.getContext("2d")
 
 // making the road horizontal and the grass vertical
@@ -20,6 +57,68 @@ window.addEventListener("resize", ()=> {
     roadBottom = canvas.height * 0.8
     roadMiddle = (roadTop + roadBottom) / 2
 })
+
+function updateTime() {
+    gameHour = (gameHour + hoursPerFrame) % 24
+
+    // Sine wave: 06:00 = 0, 12:00 = 1, 18:00 = 0, 00:00 = -1
+    sunHeight = Math.sin(((gameHour - 6) / 24) * 2 * Math.PI)
+
+    // Canvas overlay darkens when the sun drops below the horizon
+    nightOpacity = Math.max(0, -sunHeight) * 0.7
+}
+
+function getTimeLabel() {
+    let hours = Math.floor(gameHour)
+    let minutes = Math.floor((gameHour - hours) * 60)
+
+    let period = "Night"
+    if (gameHour >= 5 && gameHour < 11) period = "Morning"
+    else if (gameHour >= 11 && gameHour < 17) period = "Day"
+    else if (gameHour >= 17 && gameHour < 21) period = "Evening"
+
+    return String(hours).padStart(2, "0") + ":" + String(minutes).padStart(2, "0") + " " + period
+}
+
+function updateWeather() {
+    weatherTimer++
+
+    if (weatherTimer >= weatherDuration) {
+        weatherTimer = 0
+        weatherIndex = (weatherIndex + 1) % weatherStates.length
+    }
+    currentWeather = weatherStates[weatherIndex]
+
+    // Smooth transition/fading targets
+    let rainTarget = currentWeather === "Rain" ? 1 : 0
+    let cloudTarget = currentWeather === "Clear" ? 0 : 1
+    rainAmount += (rainTarget - rainAmount) * 0.02
+    cloudAmount += (cloudTarget - cloudAmount) * 0.02
+
+    clouds.forEach((cloud) => {
+        cloud.x += 0.15 * cloud.size
+        if (cloud.x > canvas.width + 60) cloud.x = -60
+    })
+
+    raindrops.forEach((drop) => {
+        drop.y += drop.speed
+        drop.x -= drop.speed * 0.2
+        if (drop.y > canvas.height) {
+            drop.y = -10
+            drop.x = Math.random() * canvas.width
+        }
+        if (drop.x < 0) drop.x = canvas.width
+    })
+}
+
+// Calculate solar efficiency based on time of day and weather conditions
+function getSolarEfficiency() {
+    let daylight = Math.max(0.3, sunHeight)
+    let weatherFactor = 1
+    if (currentWeather === "Cloudy") weatherFactor = 0.6
+    if (currentWeather === "Rain") weatherFactor = 0.3
+    return daylight * weatherFactor
+}
 
 // Cloud data configuration
 let cloudAmount = 0.5
@@ -60,6 +159,48 @@ function drawClouds() {
             ctx.fill()
         }
     })
+}
+
+function drawWeather() {
+    // Cloudiness overlay
+    ctx.fillStyle = "rgba(90, 100, 110, " + 0.18 * cloudAmount + ")"
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+    if (rainAmount > 0.02) {
+        // Translucent blue rain overlay
+        ctx.fillStyle = "rgba(40, 60, 90, " + 0.28 * rainAmount + ")"
+        ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+        // Darkened edge reducing visible area
+        let fog = ctx.createRadialGradient(vehicle.x, vehicle.y, 200, vehicle.x, vehicle.y, 460)
+        fog.addColorStop(0, "rgba(20, 30, 45, 0)")
+        fog.addColorStop(1, "rgba(20, 30, 45, " + 0.55 * rainAmount + ")")
+        ctx.fillStyle = fog
+        ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+        // Animated rain streaks
+        ctx.strokeStyle = "rgba(200, 220, 255, " + 0.7 * rainAmount + ")"
+        ctx.lineWidth = 1.5
+        ctx.beginPath()
+        raindrops.forEach((drop) => {
+            ctx.moveTo(drop.x, drop.y)
+            ctx.lineTo(drop.x + drop.length * 0.2, drop.y - drop.length)
+        })
+        ctx.stroke()
+    }
+}
+
+function drawDayNight() {
+    // Night overlay driven by sunHeight sine wave
+    ctx.fillStyle = "rgba(8, 12, 45, " + nightOpacity + ")"
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+    // Orange tint during sunrise and sunset
+    let tint = Math.max(0, 1 - Math.abs(sunHeight) * 3)
+    if (tint > 0) {
+        ctx.fillStyle = "rgba(255, 120, 40, " + 0.2 * tint + ")"
+        ctx.fillRect(0, 0, canvas.width, canvas.height)
+    }
 }
 
 function drawGrass() {
@@ -288,6 +429,11 @@ class Vehicle {
 
         if (movementSpeed > 0.1) {
             this.battery -= this.batteryConsumptionRate * movementSpeed
+
+        // Rain increases vehicle friction and battery usage
+if (movementSpeed > 0.1) {
+            this.battery -= this.batteryConsumptionRate * movementSpeed * (1 + 0.3 * rainAmount)
+}
         }
 
         // Ensure battery doesn't go below 0
@@ -361,20 +507,14 @@ class Pothole {
         this.hit = false
     }
 draw() {
-    ctx.fillStyle = "grey"
-
-    ctx.beginPath()
-    ctx.ellipse(
-        this.x,
-        this.y,
-        this.width / 2,
-        this.height / 2,
-        0,
-        0,
-        Math.PI * 2
-    )
-    ctx.fill()
-}
+  ctx.beginPath()
+        ctx.ellipse(this.x, this.y, this.width / 2, this.height / 2, 0, 0, Math.PI * 2)
+        ctx.fillStyle = "#5a3d1e"
+        ctx.fill()
+        ctx.lineWidth = 3
+        ctx.strokeStyle = "#d9822b"
+        ctx.stroke()
+    }
 
 getBounds() {
     return {
@@ -699,6 +839,8 @@ function handlePotholeCollisions() {
             // reduce the vehicle's speed when hitting a pothole
             vehicle.vx *= 0.2
             vehicle.vy *= 0.2
+
+            score -= 25
         }
     })
 }
@@ -712,6 +854,9 @@ function handleSolarMicrogridZones() {
 
             if (vehicle.battery > vehicle.maxBattery) {
                 vehicle.battery = vehicle.maxBattery
+
+            // Recharging scaled by solar efficiency (time of day + weather)
+                vehicle.battery += 0.25 * getSolarEfficiency()
             }
 
 }
@@ -722,7 +867,7 @@ function handleLoadSheddingZonesCollisions() {
 
         if (zone.active && checkCollision(vehicle, zone)) {
             // drain the battery slightly faster when in a load shedding zone
-            vehicle.battery -= 0.5
+            vehicle.battery -= 0.15
         }
     })
 }
@@ -731,7 +876,7 @@ function handleDeliveryTargets() {
     deliveryTargets.forEach((target) => { 
         if (!target.collected && checkCollision(vehicle, target)) {
             target.collected = true
-            score += 1
+            score += 150
         }
     })
 }
@@ -785,6 +930,9 @@ function animate() {
 
     vehicle.update()
     vehicle.draw()
+
+    drawWeather()
+    drawDayNight()
 
     drawHUD()
 
