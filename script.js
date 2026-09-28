@@ -533,17 +533,21 @@ function checkZoneGap(zone1, zone2, minGap) {
 function findFreeSpot(type, options = {}) {
     let maxAttempts = 200
 
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-        let x,y
+    // Top boundary: top peak of the power lines (roadTop - 5 - 120)
+    let minY = roadTop - 125
+    let maxY = canvas.height
 
-        //Potholes only appear on the road, so they need to be generated within the road boundaries
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        let x, y
+
+        // Potholes only appear on the road surface
         if (type === "pothole") {
             x = 60 + Math.random() * (canvas.width - 120)
             y = roadTop + 12 + Math.random() * (roadBottom - roadTop - 24)
             return new Pothole(x, y)
         }
 
-        //delivery target can be placed in a loadshedding zone
+        // Delivery target can be placed inside a load shedding zone
         if (type === "delivery" && options.insideZone) {
             let zone = options.insideZone
             let dx = zone.x + zone.width / 2
@@ -552,26 +556,39 @@ function findFreeSpot(type, options = {}) {
         }
 
         x = 80 + Math.random() * (canvas.width - 160)
-        y = 80 + Math.random() * (canvas.height - 160)
 
         if (type === "loadShedding") {
+            // LoadSheddingZone uses x, y as top-left corner
+            let zoneHeight = 120
+            y = minY + Math.random() * (maxY - minY - zoneHeight - 20)
+            
             let candidate = new LoadSheddingZone(x, y)
             let valid = solarMicrogridZones.every((solar) => checkZoneGap(candidate, solar, 110))
             if (valid) return candidate
+
         } else if (type === "solar") {
+            // SolarMicrogridZones uses x, y as center (height = 75)
+            let halfHeight = 37.5
+            y = (minY + halfHeight) + Math.random() * (maxY - (minY + halfHeight) - halfHeight - 20)
+
             let candidate = new SolarMicrogridZones(x, y)
             let valid = loadSheddingZones.every((ls) => checkZoneGap(candidate, ls, 110))
             if (valid) return candidate
+
         } else if (type === "delivery") {
+            // DeliveryTarget uses x, y as center (height = 35)
+            let halfHeight = 17.5
+            y = (minY + halfHeight) + Math.random() * (maxY - (minY + halfHeight) - halfHeight - 20)
+
             return new DeliveryTarget(x, y)
         }
     }
 
-    // fallback if max attempts reached
-    if (type === "loadShedding") return new LoadSheddingZone(100, 100)
-    if (type === "solar") return new SolarMicrogridZones(canvas.width - 150, 100)
+    // Fallbacks ensuring items stay below power lines
+    if (type === "loadShedding") return new LoadSheddingZone(100, minY)
+    if (type === "solar") return new SolarMicrogridZones(canvas.width - 150, minY + 40)
     if (type === "pothole") return new Pothole(canvas.width / 2, (roadTop + roadBottom) / 2)
-    return new DeliveryTarget(canvas.width / 2, canvas.height / 2)
+    return new DeliveryTarget(canvas.width / 2, minY + 40)
 }
 
 // Collision detection function, true if the two objects are colliding, false otherwise
