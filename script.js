@@ -148,11 +148,14 @@ for (let i = 0; i < 50; i++) {
 // background drawing function, draws the sky, grass and road
 function drawHills (baseY, hillHeight, frequency, phase, color) {
     ctx.beginPath()
-    ctx.moveTo(0, baseY + 30)
+    ctx.moveTo(0, baseY)
     for (let x = 0; x <= canvas.width; x+= 10) {
-        ctx.lineTo(x, baseY + hillHeight * Math.sin((x / canvas.width) * frequency * Math.PI * 2 + phase))
+        let y = baseY - hillHeight * Math.abs(Math.sin((x / canvas.width) * frequency * Math.PI * 2 + phase))
+        ctx.lineTo(x, y)
     }
-    ctx.lineTo(canvas.width, baseY + 30)
+
+    ctx.lineTo(canvas.width,canvas.height)
+    ctx.lineTo(0, canvas.height)
     ctx.closePath()
     ctx.fillStyle = color
     ctx.fill()
@@ -303,10 +306,6 @@ function drawBackground() {
     sky.addColorStop(1, "#f6d9a0")
     ctx.fillStyle = sky
     ctx.fillRect(0, 0, canvas.width, horizonY + 2)
- 
-    drawClouds()
-    drawHills(horizonY, 40, 0.008, 0, "#8a6a3d")
-    drawHills(horizonY + 10, 25, 0.013, 2, "#6f8a3c")
 
     // dry grass/ground
      let grass = ctx.createLinearGradient(0, horizonY, 0, canvas.height)
@@ -314,6 +313,11 @@ function drawBackground() {
     grass.addColorStop(1, "#a5883e")
     ctx.fillStyle = grass
     ctx.fillRect(0, horizonY + 10, canvas.width, canvas.height - horizonY - 10)
+
+    // clouds/ hills
+    drawClouds()
+    drawHills(horizonY, 40, 2, 0, "#8a6a3d")
+    drawHills(horizonY + 10, 25, 3, 2, "#6f8a3c")
 
     drawGrass()
     drawUtilityPoles()
@@ -750,6 +754,8 @@ let score = 0
 let distanceTraveled = 0
 let deliveriesCompleted = 0
 let totalDeliveries = 0
+let energyUsed = 0
+let gameState = "start"
 
 // initialize world elements according to these logic rules
 function initWorld() {
@@ -1100,6 +1106,17 @@ function checkGameOver() {
     } else if (vehicle.battery <= 0) {
         endGame(false)
     }
+}
+
+// Horn sounds is loaded from the assets folder
+const hornSound = new Audio("assets/horn.wav")
+
+function playHorn() {
+    if (gameState !== "playing") return
+
+    //the horn can be played again
+    hornSound.currentTime = 0
+    hornSound.play().catch(() => console.log("Horn sound could not be played"))
 }
 
 startButton.addEventListener("click", startGame)
