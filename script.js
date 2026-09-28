@@ -52,13 +52,12 @@ function drawHills (baseY, hillHeight, frequency, phase, color) {
 }
 
 function drawClouds() {
-    ctx.fillStyle = "rgba(255, 255, 255, ${0.35 + 0.5 * cloudAmount})"
+    ctx.fillStyle = `rgba(255, 255, 255, ${0.35 + 0.5 * cloudAmount})`
     clouds.forEach((cloud) => {
         for (let i = -1; i <= 1; i++) {
             ctx.beginPath()
-            ctx.arc(cloud.x + i *22 * cloud.size, cloud.y +
-                (i === 0 ? -8 : 0), 20 * cloud.size, 0, Math.PI * 2)
-                ctx.fill()
+            ctx.arc(cloud.x + i * 22 * cloud.size, cloud.y + (i === 0 ? -8 : 0), 20 * cloud.size, 0, Math.PI * 2)
+            ctx.fill()
         }
     })
 }
@@ -353,13 +352,6 @@ class Vehicle {
     }
 }
 
-let vehicle = new Vehicle(
-    canvas.width / 2,
-    canvas.height - 100
-)
-
-vehicle.draw()
-
 class Pothole {
     constructor(x, y, width = 45, height = 30) {
         this.x = x
@@ -526,6 +518,62 @@ class DeliveryTarget {
     }
 }
 
+// Check if two zones are too close to each other, returns true if they are too close, false otherwise
+function checkZoneGap(zone1, zone2, minGap) {
+    let b1 = zone1.getBounds()
+    let b2 = zone2.getBounds()
+
+    let dx = Math.max(0, Math.max(b1.x - (b2.x + b2.width), b2.x - (b1.x + b1.width)))
+    let dy = Math.max(0, Math.max(b1.y - (b2.y + b2.height), b2.y - (b1.y + b1.height)))
+
+    return Math.hypot(dx, dy) >= minGap
+}
+
+//randomly generate positions for the zones, ensuring they are not too close to each other
+function findFreeSpot(type, options = {}) {
+    let maxAttempts = 200
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        let x,y
+
+        //Potholes only appear on the road, so they need to be generated within the road boundaries
+        if (type === "pothole") {
+            x = 60 + Math.random() * (canvas.width - 120)
+            y = roadTop + 12 + Math.random() * (roadBottom - roadTop - 24)
+            return new Pothole(x, y)
+        }
+
+        //delivery target can be placed in a loadshedding zone
+        if (type === "delivery" && options.insideZone) {
+            let zone = options.insideZone
+            let dx = zone.x + zone.width / 2
+            let dy = zone.y + zone.height / 2
+            return new DeliveryTarget(dx, dy)
+        }
+
+        x = 80 + Math.random() * (canvas.width - 160)
+        y = 80 + Math.random() * (canvas.height - 160)
+
+        if (type === "loadShedding") {
+            let candidate = new LoadSheddingZone(x, y)
+            let valid = solarMicrogridZones.every((solar) => checkZoneGap(candidate, solar, 110))
+            if (valid) return candidate
+        } else if (type === "solar") {
+            let candidate = new SolarMicrogridZones(x, y)
+            let valid = loadSheddingZones.every((ls) => checkZoneGap(candidate, ls, 110))
+            if (valid) return candidate
+        } else if (type === "delivery") {
+            return new DeliveryTarget(x, y)
+        }
+    }
+
+    // fallback if max attempts reached
+    if (type === "loadShedding") return new LoadSheddingZone(100, 100)
+    if (type === "solar") return new SolarMicrogridZones(canvas.width - 150, 100)
+    if (type === "pothole") return new Pothole(canvas.width / 2, (roadTop + roadBottom) / 2)
+    return new DeliveryTarget(canvas.width / 2, canvas.height / 2)
+}
+
 // Collision detection function, true if the two objects are colliding, false otherwise
 function checkCollision(firstObject, secondObject) {
 
@@ -540,35 +588,82 @@ function checkCollision(firstObject, secondObject) {
     )
 }
 
-// positions are fractions of the canvas width and height, so they will scale with the canvas size
-let potholes = [
-    new Pothole(canvas.width * 0.35, canvas.height * 0.3),
-    new Pothole(canvas.width * 0.65, canvas.height * 0.4),
-    new Pothole(canvas.width * 0.45, canvas.height * 0.75),
-    new Pothole(canvas.width * 0.8, canvas.height * 0.6)
-]
-
-let solarMicrogridZones = [
-    new SolarMicrogridZones(canvas.width * 0.1, canvas.height * 0.15),
-    new SolarMicrogridZones(canvas.width * 0.75, canvas.height * 0.2)
-]
-
-let loadSheddingZones = [
-    new LoadSheddingZone(canvas.width * 0.05, canvas.height * 0.05),
-    new LoadSheddingZone(canvas.width * 0.75, canvas.height * 0.05)
-]
- 
-// let the number of delivery be randomly generated between 3 and 7
-let score = 0
+let vehicle = new Vehicle(canvas.width / 2, canvas.height - 100)
+let loadSheddingZones = []
+let solarMicrogridZones = []
+let potholes = []
 let deliveryTargets = []
-let numberOfDeliveryTargets = Math.floor(Math.random() * 5) + 3
+let score = 0
 
-for (let i = 0; i < numberOfDeliveryTargets; i++) {
-    // ensure the targets are not too close to the edges of the canvas
-    let randX = Math.random() * (canvas.width - 100) + 50
-    let randY = Math.random() * (canvas.height -100) + 50
-    deliveryTargets.push(new DeliveryTarget(randX, randY))
+// initialize world elements according to these logic rules
+function initWorld() {
+    loadSheddingZones = []
+    solarMicrogridZones = []
+    potholes = []
+    deliveryTargets = []
+
+    //spawn the load shedding zones
+    for (let i = 0; i < 2; i++) {
+        loadSheddingZones.push(findFreeSpot("loadShedding"))
+    }
+
+    //spawn charging stations
+    for (let i = 0; i < 2; i++) {
+        solarMicrogridZones.push(findFreeSpot("solar"))
+    }
+
+    //spawn 3 to 7 deliveries
+    let numberOfDeliveryTargets = Math.floor(Math.random() * 5) + 3
+    
+    // one delivery will always been in a loadshedding zone
+    if(loadSheddingZones.length > 0) {
+        let targetZone = loadSheddingZones[Math.floor(Math.random() * loadSheddingZones.length)]
+        deliveryTargets.push(findFreeSpot("delivery", { insideZone: targetZone }))
+    }
+
+    //randomly place the remaining deliveries
+    for (let i = deliveryTargets.length; i < numberOfDeliveryTargets; i++) {
+        deliveryTargets.push(findFreeSpot("delivery"))
+    }
+
+    //spawn the potholes on the road only
+    for (let i = 0; i < 4; i++) {
+        potholes.push(findFreeSpot("pothole"))
+    }
 }
+
+initWorld()
+
+
+// positions are fractions of the canvas width and height, so they will scale with the canvas size
+//let potholes = [
+//    new Pothole(canvas.width * 0.35, canvas.height * 0.3),
+//    new Pothole(canvas.width * 0.65, canvas.height * 0.4),
+//    new Pothole(canvas.width * 0.45, canvas.height * 0.75),
+//    new Pothole(canvas.width * 0.8, canvas.height * 0.6)
+//
+
+// let solarMicrogridZones = [
+//     new SolarMicrogridZones(canvas.width * 0.1, canvas.height * 0.15),
+//     new SolarMicrogridZones(canvas.width * 0.75, canvas.height * 0.2)
+// ]
+
+// let loadSheddingZones = [
+//     new LoadSheddingZone(canvas.width * 0.05, canvas.height * 0.05),
+//     new LoadSheddingZone(canvas.width * 0.75, canvas.height * 0.05)
+// ]
+ 
+// // let the number of delivery be randomly generated between 3 and 7
+// let score = 0
+// let deliveryTargets = []
+// let numberOfDeliveryTargets = Math.floor(Math.random() * 5) + 3
+
+// for (let i = 0; i < numberOfDeliveryTargets; i++) {
+//     // ensure the targets are not too close to the edges of the canvas
+//     let randX = Math.random() * (canvas.width - 100) + 50
+//     let randY = Math.random() * (canvas.height -100) + 50
+//     deliveryTargets.push(new DeliveryTarget(randX, randY))
+// }
 
 //left empty so that loadshedding stays constant
 function updateLoadShedding() {
